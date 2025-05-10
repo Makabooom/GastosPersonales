@@ -69,7 +69,50 @@ def guardar_datos(data):
 st.title("💸 Control de Finanzas Personales")
 datos = cargar_datos()
 
-# Ahorro hijos
+# INGRESOS
+st.header("📥 Ingresos")
+cols = st.columns(3)
+for i, key in enumerate(datos["ingresos_fijos"]):
+    datos["ingresos_fijos"][key] = cols[i % 3].number_input(key, value=datos["ingresos_fijos"][key], min_value=0)
+
+st.subheader("💌 Ingresos por correos")
+st.write(f"Total: ${sum(datos['ingresos_correos']):,}")
+nuevo_correo = st.number_input("Agregar ingreso por correos", min_value=0, step=1000)
+if st.button("➕ Agregar ingreso correo"):
+    datos["ingresos_correos"].append(nuevo_correo)
+
+st.subheader("🎁 Otros ingresos")
+st.write(f"Total: ${sum(datos['ingresos_otros']):,}")
+nuevo_otro = st.number_input("Agregar otro ingreso", min_value=0, step=1000)
+if st.button("➕ Agregar otro ingreso"):
+    datos["ingresos_otros"].append(nuevo_otro)
+
+total_ingresos = sum(datos["ingresos_fijos"].values()) + sum(datos["ingresos_correos"]) + sum(datos["ingresos_otros"])
+st.success(f"🧮 Total ingresos del mes: ${total_ingresos:,}")
+
+# DEUDAS
+st.header("💳 Deudas")
+for deuda, info in datos["deudas"].items():
+    col1, col2, col3 = st.columns([3, 2, 1])
+    col1.write(f"**{deuda}**: ${info['monto']:,} cuota actual {info['pagadas']} de {info['total']}")
+    if col2.button(f"✅ Marcar cuota pagada - {deuda}"):
+        if info['pagadas'] < info['total']:
+            info['pagadas'] += 1
+            info['pagado'] = True
+    info['pagado'] = col3.checkbox("Pagado", value=info['pagado'], key=f"{deuda}_check")
+
+# GASTOS
+st.header("📤 Gastos fijos")
+total_gastos = 0
+for nombre, info in datos["gastos_fijos"].items():
+    col1, col2 = st.columns([4, 1])
+    info["monto"] = col1.number_input(nombre, value=info["monto"], step=1000)
+    info["pagado"] = col2.checkbox("Pagado", value=info["pagado"], key=f"{nombre}_check")
+    total_gastos += info["monto"]
+
+st.warning(f"💸 Total gastos fijos: ${total_gastos:,}")
+
+# AHORRO HIJOS
 st.header("👶 Ahorros para los hijos")
 total_ahorro = 0
 for hijo, info in datos["ahorro_hijos"].items():
@@ -83,7 +126,18 @@ for hijo, info in datos["ahorro_hijos"].items():
 
 st.success(f"💖 Total ahorro hijos este mes: ${total_ahorro:,}")
 
-# Guardar
+# GUARDAR
 if st.button("💾 Guardar mes"):
     guardar_datos(datos)
     st.success("✅ Datos guardados correctamente")
+
+# HISTORIAL
+st.header("📅 Ver historial")
+archivos = sorted(os.listdir(DATA_DIR))
+for archivo in archivos:
+    if archivo.endswith(".json"):
+        nombre = archivo.replace(".json", "")
+        if st.button(f"📂 Ver {nombre}"):
+            with open(os.path.join(DATA_DIR, archivo), "r") as f:
+                data_mes = json.load(f)
+            st.json(data_mes)
