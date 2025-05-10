@@ -5,58 +5,85 @@ import json
 import os
 from datetime import datetime
 
-st.set_page_config(page_title="Mis Finanzas", page_icon="💸", layout="wide")
-
+st.set_page_config(page_title="💸 Mis Finanzas", layout="wide")
 DATA_DIR = "data"
 os.makedirs(DATA_DIR, exist_ok=True)
-fecha_actual = datetime.now().strftime("%Y-%m")
-archivo_mes = os.path.join(DATA_DIR, f"{fecha_actual}.json")
 
+# Obtener lista de meses con datos
+def obtener_meses_disponibles():
+    return sorted([f.replace(".json", "") for f in os.listdir(DATA_DIR) if f.endswith(".json")])
+
+# Selección de mes
+meses = obtener_meses_disponibles()
+mes_actual = datetime.now().strftime("%Y-%m")
+mes_seleccionado = st.selectbox("📅 Selecciona el mes", options=[mes_actual] + meses[::-1])
+
+archivo_mes = os.path.join(DATA_DIR, f"{mes_seleccionado}.json")
+
+# Cargar datos del mes
 def cargar_datos():
     if os.path.exists(archivo_mes):
         with open(archivo_mes, "r") as f:
-            return json.load(f)
+            datos = json.load(f)
     else:
-        return {
+        datos = {
+            "ingresos_fijos": {
+                "Sueldo AIEP": 0,
+                "Pensión hijo": 0,
+                "Seguro cesantía": 0
+            },
+            "ingresos_correos": [],
+            "ingresos_otros": [],
+            "ahorro_hijos": {
+                "Sebastián": {"auto": 5000, "extra": []},
+                "Hernán": {"auto": 5000, "extra": []},
+                "Mailen": {"auto": 5000, "extra": []}
+            },
+            "deudas": {
+                "Santander": {"monto": 41128, "pagadas": 9, "total": 120, "pagado": False, "pagadas_este_mes": 0},
+                "Scotiabank": {"monto": 272060, "pagadas": 9, "total": 120, "pagado": False, "pagadas_este_mes": 0},
+                "Cencosud": {"monto": 163179, "pagadas": 9, "total": 120, "pagado": False, "pagadas_este_mes": 0},
+                "Ripley": {"monto": 28419, "pagadas": 9, "total": 120, "pagado": False, "pagadas_este_mes": 0},
+                "Falabella": {"monto": 14743, "pagadas": 9, "total": 120, "pagado": False, "pagadas_este_mes": 0}
+            },
+            "gastos_fijos": {
+                "Mercadería": {"monto": 670000, "cuenta": "Cuenta Separada", "provisionado": False}
+            },
             "provisiones_mensuales": {
-                "Ahorro": {"monto": 0, "provisionado": False},
-                "Auto": {"monto": 30000, "provisionado": False},
-                "Emergencias": {"monto": 0, "provisionado": False},
-                "Pasajes": {"monto": 20000, "provisionado": False},
-                "Remedios": {"monto": 100000, "provisionado": False},
-                "Ropa": {"monto": 20000, "provisionado": False},
-                "Mascotas": {"monto": 10000, "provisionado": False},
-                "Gas": {"monto": 10000, "provisionado": False},
-                "Eventos": {"monto": 0, "provisionado": False},
-                "Leña": {"monto": 40000, "provisionado": False},
-                "Cuotas": {"monto": 30000, "provisionado": False},
-                "Arriendo": {"monto": 0, "provisionado": False},
                 "💼 Sueldo próximo mes": {"monto": 0, "provisionado": False}
             }
         }
+
+        # Si es un nuevo mes, importar sueldo reservado del mes anterior
+        meses_anteriores = [f for f in obtener_meses_disponibles() if f < mes_seleccionado]
+        if meses_anteriores:
+            ultimo_mes = meses_anteriores[-1]
+            with open(os.path.join(DATA_DIR, f"{ultimo_mes}.json"), "r") as f:
+                anterior = json.load(f)
+                sueldo_guardado = anterior.get("provisiones_mensuales", {}).get("💼 Sueldo próximo mes", {})
+                if sueldo_guardado.get("provisionado"):
+                    datos["ingresos_fijos"]["Sueldo AIEP"] += sueldo_guardado.get("monto", 0)
+
+    return datos
 
 def guardar_datos(data):
     with open(archivo_mes, "w") as f:
         json.dump(data, f, indent=4)
 
-st.title("💸 Control de Finanzas Personales - Sueldo Reservado")
-
+# Cargar datos
 datos = cargar_datos()
 
-# Provisiones
-st.header("🟦 Provisiones mensuales")
-total_esperado = 0
-total_real = 0
-for nombre, info in datos["provisiones_mensuales"].items():
-    col1, col2 = st.columns([4, 1])
-    info["monto"] = col1.number_input(f"{nombre}", min_value=0, value=info["monto"], step=1000, key=f"prov_{nombre}")
-    info["provisionado"] = col2.checkbox("✅ Provisionado", value=info["provisionado"], key=f"chk_{nombre}")
-    total_esperado += info["monto"]
-    if info["provisionado"]:
-        total_real += info["monto"]
+# Mostrar provisión de sueldo próximo mes
+st.title(f"💼 Provisión de Sueldo en {mes_seleccionado}")
+col1, col2 = st.columns([4, 1])
+datos["provisiones_mensuales"]["💼 Sueldo próximo mes"]["monto"] = col1.number_input(
+    "Monto a provisionar", min_value=0, value=datos["provisiones_mensuales"]["💼 Sueldo próximo mes"]["monto"], step=1000
+)
+datos["provisiones_mensuales"]["💼 Sueldo próximo mes"]["provisionado"] = col2.checkbox(
+    "✅ Provisionado", value=datos["provisiones_mensuales"]["💼 Sueldo próximo mes"]["provisionado"]
+)
 
-st.info(f"💼 Total esperado: ${total_esperado:,} — ✅ Total provisionado: ${total_real:,}")
-
-if st.button("💾 Guardar mes"):
+# Guardar
+if st.button("💾 Guardar cambios del mes"):
     guardar_datos(datos)
-    st.success("✅ Datos guardados correctamente")
+    st.success("✅ Datos del mes guardados correctamente")
