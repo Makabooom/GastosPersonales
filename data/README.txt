@@ -1,1 +1,1 @@
-Aquí se guardan los datos mensuales como archivos JSON, uno por mes.
+Aquí se guardan los datos mensuales como archivos JSON.
