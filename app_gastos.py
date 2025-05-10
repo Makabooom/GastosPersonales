@@ -7,15 +7,13 @@ from datetime import datetime
 
 st.set_page_config(page_title="Mis Finanzas", page_icon="💸", layout="wide")
 
-# Crear carpeta para guardar datos mensuales
+# Crear carpeta de datos
 DATA_DIR = "data"
 os.makedirs(DATA_DIR, exist_ok=True)
-
-# Archivo del mes actual
 fecha_actual = datetime.now().strftime("%Y-%m")
 archivo_mes = os.path.join(DATA_DIR, f"{fecha_actual}.json")
 
-# Cargar datos
+# Función para cargar datos
 def cargar_datos():
     if os.path.exists(archivo_mes):
         with open(archivo_mes, "r") as f:
@@ -58,67 +56,42 @@ def cargar_datos():
                 "Bencina": {"monto": 150000, "cuenta": "Copec Pay", "provisionado": False},
                 "Mercadería": {"monto": 750000, "cuenta": "Cuenta Separada", "provisionado": False}
             },
-            "provisiones": [
-                {"nombre": "Leña", "monto": 20000, "cuenta": "Cuenta Normal", "provisionado": False}
-            ]
+            "provisiones_mensuales": {
+                "Ahorro": {"monto": 0, "provisionado": False},
+                "Auto": {"monto": 30000, "provisionado": False},
+                "Emergencias": {"monto": 0, "provisionado": False},
+                "Pasajes": {"monto": 40000, "provisionado": False},
+                "Remedios": {"monto": 70000, "provisionado": False},
+                "Ropa": {"monto": 20000, "provisionado": False},
+                "Mascotas": {"monto": 10000, "provisionado": False},
+                "Gas": {"monto": 10000, "provisionado": False},
+                "Eventos": {"monto": 0, "provisionado": False},
+                "Leña": {"monto": 40000, "provisionado": False},
+                "Cuotas": {"monto": 70000, "provisionado": False},
+                "Arriendo": {"monto": 0, "provisionado": False}
+            }
         }
 
 def guardar_datos(data):
     with open(archivo_mes, "w") as f:
         json.dump(data, f, indent=4)
 
-# Interfaz
+# Interfaz principal
 st.title("💸 Control de Finanzas Personales")
 datos = cargar_datos()
 
-# INGRESOS
-st.header("📥 Ingresos")
-for key in datos["ingresos_fijos"]:
-    datos["ingresos_fijos"][key] = st.number_input(f"{key}", min_value=0, value=datos["ingresos_fijos"][key], step=1000)
-
-st.subheader("💌 Ingresos por correos")
-st.write(f"Total: ${sum(datos['ingresos_correos']):,}")
-nuevo_correo = st.number_input("Agregar ingreso por correos", min_value=0, step=1000)
-if st.button("➕ Agregar ingreso por correos"):
-    datos["ingresos_correos"].append(nuevo_correo)
-
-st.subheader("🎁 Otros ingresos")
-st.write(f"Total: ${sum(datos['ingresos_otros']):,}")
-nuevo_otro = st.number_input("Agregar otro ingreso", min_value=0, step=1000)
-if st.button("➕ Agregar otro ingreso"):
-    datos["ingresos_otros"].append(nuevo_otro)
-
-# DEUDAS
-st.header("💳 Deudas")
-for deuda, info in datos["deudas"].items():
-    st.write(f"**{deuda}** - cuota actual: {info['pagadas']} / {info['total']}")
-    cuotas_mes = st.number_input(f"Cuotas pagadas este mes ({deuda})", min_value=0, value=info["pagadas_este_mes"], step=1, key=f"{deuda}_cuotas")
-    if st.button(f"Registrar cuotas pagadas de {deuda}"):
-        info["pagadas_este_mes"] = cuotas_mes
-        info["pagadas"] += cuotas_mes
-        info["pagado"] = True
-    info["pagado"] = st.checkbox(f"{deuda} pagado este mes", value=info["pagado"], key=f"{deuda}_check")
-
-# GASTOS FIJOS
-st.header("📤 Gastos fijos")
-for nombre, info in datos["gastos_fijos"].items():
-    st.write(f"**{nombre}** ({info['cuenta']})")
-    info["monto"] = st.number_input(f"Monto: {nombre}", min_value=0, value=info["monto"], step=1000, key=f"{nombre}_monto")
-    info["provisionado"] = st.checkbox(f"Provisionado ({nombre})", value=info["provisionado"], key=f"{nombre}_prov")
-
-# AHORRO HIJOS
-st.header("👶 Ahorros para los hijos")
-for hijo, info in datos["ahorro_hijos"].items():
-    st.write(f"**{hijo}** - Ahorro automático: ${info['auto']}")
-    extra = st.number_input(f"Ahorro extra para {hijo}", min_value=0, step=1000, key=f"{hijo}_extra")
-    if st.button(f"➕ Agregar ahorro extra - {hijo}"):
-        info["extra"].append(extra)
-
-# PROVISIONES
-st.header("📂 Provisiones especiales (no mensuales)")
-for i, p in enumerate(datos["provisiones"]):
-    st.write(f"**{p['nombre']}** - ${p['monto']} ({p['cuenta']})")
-    p["provisionado"] = st.checkbox(f"{p['nombre']} provisionado", value=p["provisionado"], key=f"prov_{i}")
+# Provisiones mensuales
+st.header("🟦 Provisiones mensuales")
+total_prov_esperado = 0
+total_prov_real = 0
+for nombre, info in datos["provisiones_mensuales"].items():
+    col1, col2, col3 = st.columns([3, 2, 1])
+    info["monto"] = col1.number_input(f"{nombre}", min_value=0, value=info["monto"], step=1000, key=f"prov_{nombre}")
+    info["provisionado"] = col2.checkbox("✅ Provisionado", value=info["provisionado"], key=f"chk_{nombre}")
+    total_prov_esperado += info["monto"]
+    if info["provisionado"]:
+        total_prov_real += info["monto"]
+st.info(f"💼 Total esperado: ${total_prov_esperado:,} — ✅ Total provisionado: ${total_prov_real:,}")
 
 # Guardar
 if st.button("💾 Guardar mes"):
