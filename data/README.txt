@@ -1,1 +1,1 @@
-Aquí se guardan los archivos por mes, formato YYYY-MM.json
+Aquí se guardan los archivos mensuales (formato YYYY-MM.json)
