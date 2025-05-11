@@ -107,7 +107,7 @@ df_ing = pd.DataFrame([
     ["Sueldo", datos["ingresos"]["Sueldo"]],
     ["Pensión hijo", datos["ingresos"]["Pensión hijo"]]
 ], columns=["Tipo", "Monto"])
-df_ing = st.experimental_data_editor(df_ing, num_rows="dynamic", use_container_width=True)
+df_ing = st.data_editor(df_ing, num_rows="dynamic", use_container_width=True)
 datos["ingresos"]["Ingreso provisionado"] = df_ing.loc[df_ing["Tipo"] == "Ingreso provisionado", "Monto"].values[0]
 datos["ingresos"]["Sueldo"] = df_ing.loc[df_ing["Tipo"] == "Sueldo", "Monto"].values[0]
 datos["ingresos"]["Pensión hijo"] = df_ing.loc[df_ing["Tipo"] == "Pensión hijo", "Monto"].values[0]
@@ -125,7 +125,7 @@ st.header("💳 Deudas")
 df_deuda = pd.DataFrame([
     [k] + v for k, v in datos["deudas"].items()
 ], columns=["Entidad", "Monto cuota", "Total cuotas", "Pagadas", "Pagadas este mes"])
-df_deuda = st.experimental_data_editor(df_deuda, num_rows="fixed", use_container_width=True)
+df_deuda = st.data_editor(df_deuda, num_rows="fixed", use_container_width=True)
 for i, row in df_deuda.iterrows():
     datos["deudas"][row["Entidad"]] = [row["Monto cuota"], row["Total cuotas"], row["Pagadas"], row["Pagadas este mes"]]
 
@@ -134,7 +134,7 @@ st.header("📤 Gastos fijos")
 df_gastos = pd.DataFrame([
     [k] + v for k, v in datos["gastos"].items()
 ], columns=["Gasto", "Monto", "Cuenta", "Provisionado", "Efectuado"])
-df_gastos = st.experimental_data_editor(df_gastos, num_rows="fixed", use_container_width=True)
+df_gastos = st.data_editor(df_gastos, num_rows="fixed", use_container_width=True)
 for i, row in df_gastos.iterrows():
     datos["gastos"][row["Gasto"]] = [row["Monto"], row["Cuenta"], row["Provisionado"], row["Efectuado"]]
 
@@ -154,7 +154,7 @@ st.header("🟦 Provisiones")
 df_prov = pd.DataFrame([
     [k] + v for k, v in datos["provisiones"].items()
 ], columns=["Ítem", "Monto objetivo", "Provisionado", "Gasto real", "Comentario"])
-df_prov = st.experimental_data_editor(df_prov, num_rows="fixed", use_container_width=True)
+df_prov = st.data_editor(df_prov, num_rows="fixed", use_container_width=True)
 for i, row in df_prov.iterrows():
     datos["provisiones"][row["Ítem"]] = [row["Monto objetivo"], row["Provisionado"], row["Gasto real"], row["Comentario"]]
 
