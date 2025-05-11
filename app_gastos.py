@@ -9,11 +9,9 @@ st.set_page_config(page_title="Mis Finanzas", page_icon="💸", layout="wide")
 DATA_DIR = "data"
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# Obtener lista de meses con datos
 def obtener_meses_disponibles():
     return sorted([f.replace(".json", "") for f in os.listdir(DATA_DIR) if f.endswith(".json")])
 
-# Selección de mes
 mes_actual = datetime.now().strftime("%Y-%m")
 meses = obtener_meses_disponibles()
 if mes_actual not in meses:
@@ -21,7 +19,6 @@ if mes_actual not in meses:
 mes_seleccionado = st.selectbox("📅 Selecciona el mes", options=meses[::-1])
 archivo_mes = os.path.join(DATA_DIR, f"{mes_seleccionado}.json")
 
-# Cargar datos
 def cargar_datos():
     if os.path.exists(archivo_mes):
         with open(archivo_mes, "r") as f:
@@ -48,6 +45,20 @@ def cargar_datos():
                 "Falabella": {"monto": 14743, "pagadas": 9, "total": 120, "pagadas_este_mes": 0}
             },
             "gastos_fijos": {
+                "Arriendo": {"monto": 350000, "cuenta": "Cuenta Normal", "provisionado": False},
+                "Luz": {"monto": 70000, "cuenta": "Cuenta Normal", "provisionado": False},
+                "Agua": {"monto": 35000, "cuenta": "Cuenta Normal", "provisionado": False},
+                "Teléfono Entel": {"monto": 210000, "cuenta": "Cuenta Normal", "provisionado": False},
+                "Teléfono Wom": {"monto": 15000, "cuenta": "Cuenta Normal", "provisionado": False},
+                "Internet": {"monto": 32000, "cuenta": "Tenpo", "provisionado": False},
+                "Cable": {"monto": 30000, "cuenta": "Tenpo", "provisionado": False},
+                "Netflix": {"monto": 13000, "cuenta": "Tenpo", "provisionado": False},
+                "YouTube Premium": {"monto": 10000, "cuenta": "Tenpo", "provisionado": False},
+                "Disney+": {"monto": 10000, "cuenta": "Tenpo", "provisionado": False},
+                "Spotify": {"monto": 7050, "cuenta": "Tenpo", "provisionado": False},
+                "ChatGPT": {"monto": 20000, "cuenta": "Tenpo", "provisionado": False},
+                "Otros Play Store": {"monto": 40000, "cuenta": "Tenpo", "provisionado": False},
+                "Bencina": {"monto": 150000, "cuenta": "Copec Pay", "provisionado": False},
                 "Mercadería": {"monto": 670000, "cuenta": "Cuenta Separada", "provisionado": False}
             },
             "provisiones_mensuales": {
@@ -67,13 +78,12 @@ def cargar_datos():
             }
         }
 
-        # Traer sueldo reservado del mes anterior
         anteriores = [f for f in obtener_meses_disponibles() if f < mes_seleccionado]
         if anteriores:
-            mes_anterior = anteriores[-1]
-            with open(os.path.join(DATA_DIR, f"{mes_anterior}.json"), "r") as f:
-                datos_anteriores = json.load(f)
-                sueldo_reservado = datos_anteriores.get("provisiones_mensuales", {}).get("💼 Sueldo próximo mes", {})
+            anterior = anteriores[-1]
+            with open(os.path.join(DATA_DIR, f"{anterior}.json"), "r") as f:
+                datos_ant = json.load(f)
+                sueldo_reservado = datos_ant.get("provisiones_mensuales", {}).get("💼 Sueldo próximo mes", {})
                 if sueldo_reservado.get("provisionado"):
                     datos["ingresos_fijos"]["Sueldo AIEP"] += sueldo_reservado.get("monto", 0)
         return datos
@@ -82,81 +92,11 @@ def guardar_datos(datos):
     with open(archivo_mes, "w") as f:
         json.dump(datos, f, indent=4)
 
-# Cargar datos
+st.title("💸 Control de Finanzas Personales (Completo)")
+
 datos = cargar_datos()
 
-# INGRESOS
-st.header("📥 Ingresos")
-total_ingresos = 0
-for key in datos["ingresos_fijos"]:
-    datos["ingresos_fijos"][key] = st.number_input(f"{key}", value=datos["ingresos_fijos"][key], min_value=0, step=1000)
-    total_ingresos += datos["ingresos_fijos"][key]
-
-st.subheader("💌 Ingresos por correos")
-st.write(f"Total: ${sum(datos['ingresos_correos']):,}")
-nuevo_correo = st.number_input("Agregar ingreso por correos", min_value=0, step=1000)
-if st.button("➕ Agregar ingreso por correos"):
-    datos["ingresos_correos"].append(nuevo_correo)
-total_ingresos += sum(datos["ingresos_correos"])
-
-st.subheader("🎁 Otros ingresos")
-st.write(f"Total: ${sum(datos['ingresos_otros']):,}")
-nuevo_otro = st.number_input("Agregar otro ingreso", min_value=0, step=1000)
-if st.button("➕ Agregar otro ingreso"):
-    datos["ingresos_otros"].append(nuevo_otro)
-total_ingresos += sum(datos["ingresos_otros"])
-
-# DEUDAS
-st.header("💳 Deudas")
-total_deudas = 0
-for deuda, info in datos["deudas"].items():
-    st.write(f"**{deuda}**: cuota actual {info['pagadas']} / {info['total']}")
-    cuotas_mes = st.number_input(f"Cuotas pagadas este mes ({deuda})", min_value=0, value=info["pagadas_este_mes"], key=f"{deuda}_cuotas")
-    if st.button(f"Registrar pago - {deuda}"):
-        info["pagadas_este_mes"] = cuotas_mes
-        info["pagadas"] += cuotas_mes
-    total_deudas += info["monto"] * cuotas_mes
-
-# GASTOS FIJOS
-st.header("📤 Gastos fijos")
-total_gastos = 0
-for nombre, info in datos["gastos_fijos"].items():
-    col1, col2 = st.columns([4, 1])
-    info["monto"] = col1.number_input(nombre, value=info["monto"], step=1000, key=f"{nombre}_monto")
-    info["provisionado"] = col2.checkbox("Provisionado", value=info["provisionado"], key=f"{nombre}_prov")
-    total_gastos += info["monto"]
-
-# AHORRO HIJOS
-st.header("👶 Ahorro hijos")
-total_ahorro = 0
-for hijo, info in datos["ahorro_hijos"].items():
-    st.write(f"{hijo} - ahorro auto: ${info['auto']}")
-    extra = st.number_input(f"Ahorro extra {hijo}", min_value=0, step=1000, key=f"{hijo}_extra")
-    if st.button(f"Agregar ahorro extra {hijo}"):
-        info["extra"].append(extra)
-    total_ahorro += info["auto"] + sum(info["extra"])
-
-# PROVISIONES
-st.header("🟦 Provisiones mensuales")
-total_prov = 0
-for nombre, info in datos["provisiones_mensuales"].items():
-    col1, col2 = st.columns([4, 1])
-    info["monto"] = col1.number_input(nombre, value=info["monto"], step=1000, key=f"prov_{nombre}")
-    info["provisionado"] = col2.checkbox("Provisionado", value=info["provisionado"], key=f"chk_{nombre}")
-    if info["provisionado"]:
-        total_prov += info["monto"]
-
-# RESUMEN
-st.header("📊 Resumen")
-st.write(f"**Total ingresos:** ${total_ingresos:,}")
-st.write(f"**Total deudas:** ${total_deudas:,}")
-st.write(f"**Total gastos fijos:** ${total_gastos:,}")
-st.write(f"**Total ahorro hijos:** ${total_ahorro:,}")
-st.write(f"**Total provisiones:** ${total_prov:,}")
-saldo = total_ingresos - (total_deudas + total_gastos + total_ahorro + total_prov)
-st.success(f"💰 Saldo estimado: ${saldo:,}")
-
-# GUARDAR
+# GUARDAR botón simple para esta versión
 if st.button("💾 Guardar mes"):
     guardar_datos(datos)
-    st.success("✅ Mes guardado correctamente")
+    st.success("✅ Datos guardados correctamente")
