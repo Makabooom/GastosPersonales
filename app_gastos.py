@@ -1,6 +1,6 @@
 
 # app_gastos.py
-# App de Finanzas de Maca con visualización en tablas
+# App interactiva de Finanzas de Maca - versión final con tablas editables
 import streamlit as st
 import pandas as pd
 import json
@@ -11,7 +11,6 @@ st.set_page_config(page_title="💸 Finanzas de Maca", layout="wide")
 DATA_DIR = "data"
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# Selección de mes
 def obtener_meses():
     return sorted([f.replace(".json", "") for f in os.listdir(DATA_DIR) if f.endswith(".json")])
 
@@ -101,43 +100,83 @@ def guardar_datos(datos):
 
 datos = cargar_datos()
 
-# Mostrar ingresos
+# --- Ingresos ---
 st.header("📥 Ingresos")
-df_ingresos = pd.DataFrame({
-    "Tipo": ["Ingreso provisionado", "Sueldo", "Pensión hijo"],
-    "Monto": [datos["ingresos"]["Ingreso provisionado"], datos["ingresos"]["Sueldo"], datos["ingresos"]["Pensión hijo"]]
-})
-st.table(df_ingresos)
+df_ing = pd.DataFrame([
+    ["Ingreso provisionado", datos["ingresos"]["Ingreso provisionado"]],
+    ["Sueldo", datos["ingresos"]["Sueldo"]],
+    ["Pensión hijo", datos["ingresos"]["Pensión hijo"]]
+], columns=["Tipo", "Monto"])
+df_ing = st.experimental_data_editor(df_ing, num_rows="dynamic", use_container_width=True)
+datos["ingresos"]["Ingreso provisionado"] = df_ing.loc[df_ing["Tipo"] == "Ingreso provisionado", "Monto"].values[0]
+datos["ingresos"]["Sueldo"] = df_ing.loc[df_ing["Tipo"] == "Sueldo", "Monto"].values[0]
+datos["ingresos"]["Pensión hijo"] = df_ing.loc[df_ing["Tipo"] == "Pensión hijo", "Monto"].values[0]
 
-# Mostrar deudas
+st.subheader("➕ Ingresos por correos y otros")
+nuevo_correo = st.number_input("Agregar ingreso por correos", 0, step=1000)
+if st.button("Agregar correo"):
+    datos["ingresos"]["Correos"].append(nuevo_correo)
+nuevo_otro = st.number_input("Agregar otro ingreso", 0, step=1000)
+if st.button("Agregar otro"):
+    datos["ingresos"]["Otros"].append(nuevo_otro)
+
+# --- Deudas ---
 st.header("💳 Deudas")
-df_deudas = pd.DataFrame([
+df_deuda = pd.DataFrame([
     [k] + v for k, v in datos["deudas"].items()
 ], columns=["Entidad", "Monto cuota", "Total cuotas", "Pagadas", "Pagadas este mes"])
-st.table(df_deudas)
+df_deuda = st.experimental_data_editor(df_deuda, num_rows="fixed", use_container_width=True)
+for i, row in df_deuda.iterrows():
+    datos["deudas"][row["Entidad"]] = [row["Monto cuota"], row["Total cuotas"], row["Pagadas"], row["Pagadas este mes"]]
 
-# Mostrar gastos
+# --- Gastos fijos ---
 st.header("📤 Gastos fijos")
 df_gastos = pd.DataFrame([
     [k] + v for k, v in datos["gastos"].items()
 ], columns=["Gasto", "Monto", "Cuenta", "Provisionado", "Efectuado"])
-st.table(df_gastos)
+df_gastos = st.experimental_data_editor(df_gastos, num_rows="fixed", use_container_width=True)
+for i, row in df_gastos.iterrows():
+    datos["gastos"][row["Gasto"]] = [row["Monto"], row["Cuenta"], row["Provisionado"], row["Efectuado"]]
 
-# Mostrar ahorros
+# --- Ahorros hijos ---
 st.header("👶 Ahorros por hijo")
 df_ahorro = pd.DataFrame([
     [k, v[0], sum(v[1])] for k, v in datos["ahorros"].items()
-], columns=["Hijo", "Auto", "Extra acumulado"])
+], columns=["Hijo", "Ahorro automático", "Extra acumulado"])
 st.table(df_ahorro)
+for hijo in datos["ahorros"]:
+    extra = st.number_input(f"Ahorro extra para {hijo}", 0, step=1000, key=f"extra_{hijo}")
+    if st.button(f"Agregar ahorro extra - {hijo}"):
+        datos["ahorros"][hijo][1].append(extra)
 
-# Mostrar provisiones
+# --- Provisiones ---
 st.header("🟦 Provisiones")
 df_prov = pd.DataFrame([
     [k] + v for k, v in datos["provisiones"].items()
 ], columns=["Ítem", "Monto objetivo", "Provisionado", "Gasto real", "Comentario"])
-st.table(df_prov)
+df_prov = st.experimental_data_editor(df_prov, num_rows="fixed", use_container_width=True)
+for i, row in df_prov.iterrows():
+    datos["provisiones"][row["Ítem"]] = [row["Monto objetivo"], row["Provisionado"], row["Gasto real"], row["Comentario"]]
 
-# Guardar
+# --- Resumen ---
+st.header("📊 Resumen")
+total_ingresos = datos["ingresos"]["Ingreso provisionado"] + datos["ingresos"]["Sueldo"] + datos["ingresos"]["Pensión hijo"] + sum(datos["ingresos"]["Correos"]) + sum(datos["ingresos"]["Otros"])
+total_deudas = sum(v[0]*v[3] for v in datos["deudas"].values())
+total_gastos = sum(v[0] for v in datos["gastos"].values() if v[3])  # Solo si efectuado
+total_ahorro = sum(v[0] + sum(v[1]) for v in datos["ahorros"].values())
+total_prov = sum(v[0] for v in datos["provisiones"].values() if v[1])
+total_gastado_prov = sum(v[2] for v in datos["provisiones"].values())
+
+saldo = total_ingresos - (total_deudas + total_gastos + total_ahorro + total_prov)
+
+st.write(f"**Total ingresos:** ${total_ingresos:,}")
+st.write(f"**Total deudas pagadas:** ${total_deudas:,}")
+st.write(f"**Total gastos efectuados:** ${total_gastos:,}")
+st.write(f"**Total ahorro hijos:** ${total_ahorro:,}")
+st.write(f"**Total provisiones hechas:** ${total_prov:,}")
+st.write(f"**Gasto real desde provisiones:** ${total_gastado_prov:,}")
+st.success(f"💰 **Saldo estimado del mes:** ${saldo:,}")
+
 if st.button("💾 Guardar mes"):
     guardar_datos(datos)
-    st.success("✅ Datos guardados correctamente")
+    st.success("✅ Datos guardados correctamente.")
